@@ -1,0 +1,119 @@
+---
+title: "Practical machine learning"
+output: html_document
+---
+
+#Loading raw data
+
+The cata HAR human activity racognition had ben loaded to perform some calsification analysis. First of all data to be classified (20 samples), are all for case where wariable new_window has value of "no". That is why this analysis would focus more on set with just this part of data. Some initial transformation had been applied. First off all for some variables there were missing values and for some other empty spaces. This variables had been deleted from the set to assign  appropriate algorithm 
+
+It is belived that better understending problem and structure of data lead to better results in the future. 
+
+
+#Models fitted
+
+It had been considered to use ensemble method as long as it gives the best results among contest and for some applications. 
+There had been used just limited small number of models. 
+
+*Random Forest 
+
+*Linear Dyskryminant Analysis
+
+*K - nearest neighbors
+
+The final result is chosen based on number of predictors that predict particular outcome.
+The results for the random forest and knn were almost similar while for it varied a bit.
+
+#Data prediction out of sample error estimation
+
+
+```{r, eval=FALSE}
+url <- "C:/Users/Math/Desktop/coursera/Practical data mining/Project"
+setwd(url)
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+library(caret)
+library(rattle)
+library(rpart)
+library(randomForest)
+library(klaR)
+library(gbm)
+library(survival)
+library(splines)
+library(plyr)
+df <- training 
+
+#Partition of the set into set for which value of the window is "yes and "no" 
+yes_df <- df[which(df$new_window == "yes"), ]
+no_df <- df[-which(df$new_window == "yes"), ]
+
+#Deleting columns for which there are missing values (NA)
+IndexNA <- which(is.na(df[1,]))
+IndexBlank <- which(no_df[1,] == "")
+IndexDelete <- c(1, 3, 4, 5, 6, 7, IndexBlank, IndexNA)
+
+no_df <- df[, -IndexDelete]
+testing <- testing [, -IndexDelete]
+
+
+#Preparation of values to fit the models
+set.seed(41242)
+seeds <- vector(mode = "list", length = 41)
+for(i in 1:40) seeds[[i]]<- sample.int(1000, 3)
+seeds[[41]]<-sample.int(1000, 1)#for the last model
+str(seeds)
+fitControl <- trainControl(## 10-fold CV
+   method = "repeatedcv",
+   number = 10,
+   ## repeated ten times
+   repeats = 4,
+   seeds=seeds)
+
+#Fitting appropriate models
+fit_rf <- train(classe ~ ., data = no_df, method='rf', trControl = fitControl, ntree = 60, tuneGrid = data.frame(.mtry = 17))
+fit_knn <- train(classe ~ ., data = no_df, method='knn', trControl = fitControl)  
+fit_lda <- train(classe ~ ., data = no_df, method='lda', trControl = fitControl)
+
+df1 <- data.frame( knn = predict(fit_knn, newdata = testing)
+                 , rf = predict(fit_rf, newdata = testing)
+                 , lda = predict(fit_lda, newdata = testing))
+```
+
+
+#Crosvalidation
+
+Out of sample error had been calculated using 10 Fold crossvalidation, repeated 4 times. For this approach the . 
+The error is sytabilizing for just 60 random trees. The crossvalidation is calculated automatically using function train. 
+```{r, eval=FALSE}
+fitControl <- trainControl(## 10-fold CV
+   method = "repeatedcv",
+   number = 10,
+   ## repeated ten times
+   repeats = 4,
+   seeds=seeds)
+```
+
+Using trainControl parameter  there is 10 fold crossvalidation repeated 4 times. Results are presented in the table under:
+
+
+<table border=1>
+<tr>  <th> Model </th> <th> Accuracy </th> <th> Kappa </th> <th> AccuracySD </th> <th> KappaSD </th>  </tr>
+  <tr> <td> KNN </td> <td align="right"> 0.93 </td> <td align="right"> 0.91 </td> <td align="right"> 0.00 </td> <td align="right"> 0.01 </td> </tr>
+  <tr>  <td> LDA </td> <td align="right"> 0.73 </td> <td align="right"> 0.66 </td> <td align="right"> 0.01 </td> <td align="right"> 0.01 </td> </tr>
+  <tr> <td> RF </td> <td align="right"> 1.00 </td> <td align="right"> 0.99 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> </tr>
+   </table>
+   
+   
+#Out of sample error
+
+Prediction of out of error sample is close to 0 as long as accuracy for random forest is equal 0.996 and similary for knn 0.93. As an back up there is third model LDA with lower accuracy. 
+
+
+#Prediction of the unknown data
+
+The unknown data had been predicted using ensamble method. For KNN and RF results were identical, so seconde choice was usually using second method LDA. 
+
+#References 
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3MBtlo7ga 
